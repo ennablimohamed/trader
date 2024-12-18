@@ -1,0 +1,2 @@
+class AppConfigExceptionError(Exception):
+    pass
