@@ -1,4 +1,5 @@
 from manager.abstract_manager import AbstractManager
+from signal_detector.abstract_signal_detector import AbstractSignalDetector
 
 
 class DeepSignalDetector(AbstractSignalDetector):

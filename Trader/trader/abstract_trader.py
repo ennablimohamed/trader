@@ -4,17 +4,17 @@ import threading
 from abc import ABC
 
 
-class AbstractSignalDetector(ABC):
+class AbstractTrader(ABC):
 
-    def __init__(self, app_config, symbol, type):
+    def __init__(self, symbol, capital, signal_detector):
         self.last_price = None
-        self.app_config = app_config
-        self.symbol = symbol
         self.price_queue = queue.Queue(maxsize=1000)
         self.stop_event = threading.Event()
         self.threads = []
-        self.type = type
-        self.signal_consumers = []
+        self.symbol = symbol
+        self.signal_queue = queue.Queue(maxsize=1000)
+        self.capital = capital
+        self.signal_detector = signal_detector
 
     def start(self):
         self.init_price_handling()

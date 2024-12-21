@@ -41,3 +41,28 @@ class SignalManager(AbstractManager):
             threads += signal_detector.threads
         return threads
 
+    def get_klines_queues(self):
+        klines_queues = {}
+        for detector in self.signal_detectors:
+            symbol = detector.symbol
+            if self.__need_klines(symbol=symbol, detector_type=detector.type):
+                if klines_queues.get(symbol):
+                    klines_queues[symbol].append(detector.klines_queue)
+                else:
+                    klines_queues[symbol] = [detector.klines_queue]
+        return klines_queues
+
+    def __need_klines(self, symbol, detector_type):
+        signal_configs = self.app_config.signal_configs
+        for config in signal_configs:
+            if config.symbol == symbol and config.detector == detector_type:
+                return True
+        return False
+
+    def add_signal_consumer(self, signal_queue, signal_detector, symbol):
+        for detector in self.signal_detectors:
+            if detector.symbol == symbol and detector.type == signal_detector:
+                detector.add_signal_consumer(signal_queue)
+                break
+
+

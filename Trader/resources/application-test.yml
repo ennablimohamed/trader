@@ -7,21 +7,41 @@ api:
     websocket-base-url: wss://stream.testnet.binance.vision:9443
   base-url: https://api.binance.com
   websocket-base-url: wss://stream.binance.com:9443
-price:
-  symbols:
-    - BTCUSDT
-    - ETHUSDT
-    - SOLUDST
+
+klines:
+  - BTCUSDT:
+      period: 15m
+  - ETHUSDT:
+      period: 15m
+  - SOLUSDT:
+      period: 15m
 
 signals:
   - ReverseMeanSignalBTC :
       symbol: BTCUSDT
       detector: ReverseMeanSignalDetector
+      need_klines: true
   - ReverseMeanSignalETH:
       symbol: ETHUSDT
       detector: ReverseMeanSignalDetector
+      need_klines: true
   - ReverseMeanSignalSOL:
       symbol: SOLUSDT
       detector: ReverseMeanSignalDetector
+      need_klines: true
+
+traders:
+  - ReverseMeanTraderBTC:
+      symbol: BTCUSDT
+      detector: ReverseMeanSignalDetector
+      capital: 1000
+  - ReverseMeanTraderETH:
+      symbol: ETHUSDT
+      detector: ReverseMeanSignalDetector
+      capital: 1000
+  - ReverseMeanTraderSOL:
+      symbol: SOLUSDT
+      detector: ReverseMeanSignalDetector
+      capital: 1000
 
 

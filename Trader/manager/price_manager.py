@@ -11,11 +11,11 @@ import websockets
 
 class PriceManager(AbstractManager):
 
-    def __init__(self, app_config, symbol, price_consumers_queues):
+    def __init__(self, app_config, symbol, consumers_queues):
         super().__init__(app_config)
         self.threads = []
         self.__last_price = None
-        self.__consumers_queues = price_consumers_queues
+        self.__consumers_queues = consumers_queues
         self.symbol = symbol
 
     def start(self):
@@ -57,7 +57,8 @@ class PriceManager(AbstractManager):
                     logging.error(f"Unexpected error occurred", exc_info=True)
                     await asyncio.sleep(5)
 
-        t = threading.Thread(target=run, daemon=True).start()
+        t = threading.Thread(target=run, daemon=True)
+        t.start()
         self.threads.append(t)
 
     def __update_price(self, message):
