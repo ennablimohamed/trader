@@ -6,6 +6,8 @@ from decimal import Decimal
 import pandas as pd
 
 from signal_detector.abstract_signal_detector import AbstractSignalDetector
+from signal_detector.model.Signal import Signal
+from signal_detector.model.signal_type import SIGNAL_TYPE_BUY
 
 
 class ReverseMeanSignalDetector(AbstractSignalDetector):
@@ -59,12 +61,14 @@ class ReverseMeanSignalDetector(AbstractSignalDetector):
                 detected_signal_type = "BUY"
             elif last_close > middle_band:
                 detected_signal_type = "SELL"
-            if detected_signal_type is not None:
-                message = {"detector": "ReverseMeanSignalDetector",
-                           "symbol": self.symbol,
-                           "type": detected_signal_type,
-                           "price": self.last_price}
-                self.__notify_consumers(message)
+                ##if detected_signal_type is not None:
+            message = Signal(
+                detector=self.type,
+                symbol=self.symbol,
+                signal_type= SIGNAL_TYPE_BUY,
+                price=self.last_price
+            )
+            self.__notify_consumers(message)
         except Exception as e:
             logging.error(f"An error occurred while detecting reverse mean signal for symbol {self.symbol}")
 

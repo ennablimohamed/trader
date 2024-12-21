@@ -2,3 +2,4 @@ PyYAML~=6.0.2
 websockets~=14.1
 requests~=2.32.3
 pandas~=2.2.3
+binance-connector~=3.5.1

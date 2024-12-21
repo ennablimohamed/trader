@@ -4,6 +4,7 @@ import yaml
 
 from config.api_config import ApiConfig
 from config.api_config_credentials import ApiConfigCredentials
+from config.api_trades_config import ApiTradesConfig
 from config.app_config import AppConfig
 from config.env_util import get_environment
 from config.api_price_config import ApiPriceConfig
@@ -46,8 +47,15 @@ def extract_api_config(file_config):
     credentials = ApiConfigCredentials(file_credentials['api-key'], file_credentials['secret'])
     websocket_base_url = file_config_api['websocket-base-url']
     base_url = file_config_api['base-url']
+    file_api_trades_config = file_config_api['trades']
+    api_trades_config = ApiTradesConfig(
+        base_url=file_api_trades_config['base-url'],
+        websocket_base_url=file_api_trades_config['websocket-base-url'])
 
-    return ApiConfig(credentials=credentials, websocket_base_url=websocket_base_url, base_url=base_url)
+    return ApiConfig(credentials=credentials,
+                     websocket_base_url=websocket_base_url,
+                     base_url=base_url,
+                     trades_config= api_trades_config)
 
 
 def load_file(path):
@@ -87,6 +95,11 @@ def extract_traders_config(file_config):
             symbol = value['symbol']
             detector = value['detector']
             capital = value['capital']
-            trader_config = TraderConfig(symbol=symbol, detector=detector, capital=capital)
+            trade_quantity = value['trade-quantity']
+            trader_config = TraderConfig(
+                symbol=symbol,
+                detector=detector,
+                capital=capital,
+                trade_quantity=trade_quantity)
             traders_configs.append(trader_config)
     return traders_configs

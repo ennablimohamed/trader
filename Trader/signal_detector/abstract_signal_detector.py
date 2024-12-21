@@ -31,7 +31,9 @@ class AbstractSignalDetector(ABC):
             except queue.Empty:
                 continue
             except Exception as e:
-                logging.error(f"process_price_update_message : Error processing price message for symbol {self.symbol}: {e}", exc_info=True)
+                logging.error(
+                    f"process_price_update_message : Error processing price message for symbol {self.symbol}: {e}",
+                    exc_info=True)
                 self.price_queue.task_done()
 
     def init_price_handling(self):

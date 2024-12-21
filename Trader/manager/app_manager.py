@@ -42,6 +42,7 @@ class AppManager(AbstractManager):
 
     def fill_signal_consumers_queues(self):
         for trader in self.trader_manager.traders:
-            self.signal_manager.add_signal_consumer(trader.signal_queue, trader.signal_detector, trader.symbol)
+            trader_config = trader.trader_config
+            self.signal_manager.add_signal_consumer(trader.signal_queue, trader_config.detector, trader_config.symbol)
 
 

@@ -3,6 +3,8 @@ import logging
 from manager.abstract_manager import AbstractManager
 from trader.reverse_mean_trader import ReverserMeanTrader
 
+REVERSE_MEAN_SIGNAL_DETECTOR = 'ReverseMeanSignalDetector'
+
 
 class TraderManager(AbstractManager):
 
@@ -19,19 +21,19 @@ class TraderManager(AbstractManager):
         traders = []
         traders_configs = self.app_config.traders_config
         for config in traders_configs:
-            if config.detector == 'ReverseMeanSignalDetector':
-                trader = ReverserMeanTrader(symbol=config.symbol, capital=config.capital, signal_detector=config.detector)
+            if config.detector == REVERSE_MEAN_SIGNAL_DETECTOR:
+                trader = ReverserMeanTrader(api_config=self.app_config.api_config,trader_config=config)
                 traders.append(trader)
         return traders
 
     def get_price_queues(self):
         price_queues = {}
         for trader in self.traders:
-            symbol = trader.symbol
-            if price_queues.get(symbol):
-                price_queues[symbol].append(trader.price_queue)
+            trader_config = trader.trader_config
+            if price_queues.get(trader_config.symbol):
+                price_queues[trader_config.symbol].append(trader.price_queue)
             else:
-                price_queues[symbol] = [trader.price_queue]
+                price_queues[trader_config.symbol] = [trader.price_queue]
         return price_queues
 
     def get_threads(self):
