@@ -11,44 +11,16 @@ api:
 klines:
   - BTCUSDT:
       period: 15m
-  - ETHUSDT:
-      period: 15m
-  - SOLUSDT:
-      period: 15m
 
 signals:
   - ReverseMeanSignalBTC :
       symbol: BTCUSDT
       detector: ReverseMeanSignalDetector
       need_klines: true
-  - ReverseMeanSignalETH:
-      symbol: ETHUSDT
-      detector: ReverseMeanSignalDetector
-      need_klines: true
-  - ReverseMeanSignalSOL:
-      symbol: SOLUSDT
-      detector: ReverseMeanSignalDetector
-      need_klines: true
 
 traders:
   - ReverseMeanTraderBTC:
       symbol: BTCUSDT
-      detector: ReverseMeanSignalDetector
-      capital: 1000
-      fees:
-        quantity: 0.0001
-        slots: 999
-      trade-quantity: 0.001
-  - ReverseMeanTraderETH:
-      symbol: ETHUSDT
-      detector: ReverseMeanSignalDetector
-      capital: 1000
-      fees:
-        quantity: 0.0001
-        slots: 999
-      trade-quantity: 0.001
-  - ReverseMeanTraderSOL:
-      symbol: SOLUSDT
       detector: ReverseMeanSignalDetector
       capital: 1000
       fees:

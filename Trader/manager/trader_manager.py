@@ -36,6 +36,12 @@ class TraderManager(AbstractManager):
                 price_queues[trader_config.symbol] = [trader.price_queue]
         return price_queues
 
+    def get_order_queues(self):
+        order_queues = []
+        for trader in self.traders:
+            order_queues.append(trader.order_queue)
+        return order_queues
+
     def get_threads(self):
         threads = []
         for trader in self.traders:

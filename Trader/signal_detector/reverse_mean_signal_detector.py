@@ -61,14 +61,14 @@ class ReverseMeanSignalDetector(AbstractSignalDetector):
                 detected_signal_type = "BUY"
             elif last_close > middle_band:
                 detected_signal_type = "SELL"
-                ##if detected_signal_type is not None:
-            message = Signal(
-                detector=self.type,
-                symbol=self.symbol,
-                signal_type= SIGNAL_TYPE_BUY,
-                price=self.last_price
-            )
-            self.__notify_consumers(message)
+            if detected_signal_type is not None:
+                message = Signal(
+                    detector=self.type,
+                    symbol=self.symbol,
+                    signal_type=SIGNAL_TYPE_BUY,
+                    price=self.last_price
+                )
+                self.__notify_consumers(message)
         except Exception as e:
             logging.error(f"An error occurred while detecting reverse mean signal for symbol {self.symbol}")
 
@@ -103,7 +103,7 @@ class ReverseMeanSignalDetector(AbstractSignalDetector):
 
     def __notify_consumers(self, message):
 
-        logging.info(f"__notify_consumers : Start notifying consumers about detected signal {message}")
+        logging.debug(f"__notify_consumers : Start notifying consumers about detected signal {message}")
         for q in self.signal_consumers:
             try:
                 q.put_nowait(message)

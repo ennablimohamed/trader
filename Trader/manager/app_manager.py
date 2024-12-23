@@ -1,4 +1,7 @@
+import logging
+
 from manager.abstract_manager import AbstractManager
+from manager.order_manager import OrderManager
 from manager.signal.signal_manager import SignalManager
 from manager.symbol_data_manager import SymbolDataManager
 from manager.trader_manager import TraderManager
@@ -19,11 +22,18 @@ class AppManager(AbstractManager):
             price_consumers_queues=price_queues,
             klines_consumers_queues=klines_queues
         )
+        order_queues = self.trader_manager.get_order_queues()
+        self.order_manager = OrderManager(app_config=app_config, order_queues=order_queues)
 
     def start(self):
+        logging.info("start : Starting symbol_data_manager")
         self.symbol_data_manager.start()
+        logging.info("start : Starting signal manager")
         self.signal_manager.start()
+        logging.info("start : Starting trader manager")
         self.trader_manager.start()
+        logging.info("start : Starting order manager")
+        self.order_manager.start()
         threads = self.__get_threads()
         for t in threads:
             t.join()
@@ -32,6 +42,7 @@ class AppManager(AbstractManager):
         threads = self.signal_manager.get_threads()
         threads += self.symbol_data_manager.get_threads()
         threads += self.trader_manager.get_threads()
+        threads += self.order_manager.get_threads()
         return threads
 
     def __extract_price_queues(self):
