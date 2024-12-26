@@ -44,3 +44,16 @@ class AbstractSignalDetector(ABC):
         )
         t.start()
         self.threads.append(t)
+
+    def notify_consumers(self, message):
+
+        logging.debug(f"__notify_consumers : Start notifying consumers about detected signal {message}")
+        for q in self.signal_consumers:
+            try:
+                q.put_nowait(message)
+            except queue.Full:
+                logging.warning(
+                    f"Signal queue is full for symbol {self.symbol} and detector {self.type}. Dropping message.")
+
+    def add_signal_consumer(self, signal_queue):
+        self.signal_consumers.append(signal_queue)

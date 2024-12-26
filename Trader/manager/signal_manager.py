@@ -1,6 +1,7 @@
 import logging
 
 from manager.abstract_manager import AbstractManager
+from signal_detector.grid_signal_detector import GridSignalDetector
 from signal_detector.reverse_mean_signal_detector import ReverseMeanSignalDetector
 
 
@@ -22,6 +23,9 @@ class SignalManager(AbstractManager):
         for config in signal_configs:
             if config.detector == 'ReverseMeanSignalDetector':
                 detector = ReverseMeanSignalDetector(symbol=config.symbol, app_config=self.app_config)
+                signal_detectors.append(detector)
+            elif config.detector == 'GridSignalDetector':
+                detector = GridSignalDetector(symbol=config.symbol, app_config=self.app_config)
                 signal_detectors.append(detector)
         return signal_detectors
 

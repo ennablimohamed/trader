@@ -1,8 +1,8 @@
+from signal_detector.model.AbstractSignal import AbstractSignal
 
-class Signal:
+
+class Signal(AbstractSignal):
 
     def __init__(self, detector, symbol, signal_type, price):
-        self.detector = detector
-        self.symbol = symbol
-        self.type = signal_type
+        super().__init__(type=signal_type, detector=detector, symbol=symbol)
         self.price = price

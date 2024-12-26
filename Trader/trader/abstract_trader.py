@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from binance.spot import Spot
 from date.date_util import get_current_date, compute_duration_until_now
-from signal_detector.model.signal_type import SIGNAL_TYPE_BUY, SIGNAL_TYPE_SELL
+from signal_detector.model.signal_type import SIGNAL_TYPE_BUY, SIGNAL_TYPE_SELL, SIGNAL_TYPE_GRID_CONFIG
 from trader.model.trade import Trade
 
 STATUS_BUY_OPEN = 'buy-open'
@@ -19,7 +19,7 @@ STATUS_SALE_OPEN = 'sale-open'
 
 class AbstractTrader(ABC):
 
-    def __init__(self, api_config, trader_config):
+    def __init__(self, api_config, trader_config, name):
         self.last_price = None
         self.price_queue = queue.Queue(maxsize=1000)
         self.stop_event = threading.Event()
@@ -35,6 +35,7 @@ class AbstractTrader(ABC):
         self.fees_to_cover = Decimal('0')
         self.order_queue = queue.Queue(maxsize=1000)
         self.trading_fee_percentage = Decimal('0.001')
+        self.name = name
 
     def start(self):
         self.__init_client()
@@ -68,8 +69,6 @@ class AbstractTrader(ABC):
         t.start()
         self.threads.append(t)
 
-
-
     def buy_fees(self):
         try:
             quantity = Decimal('0.0000001') * Decimal('1000')
@@ -102,16 +101,19 @@ class AbstractTrader(ABC):
             api_secret=credentials.secret,
             base_url=trades_base_url)
 
-    def open_position(self):
+    def open_position(self, price=None):
         try:
             quantity = Decimal(str(self.trader_config.trade_quantity))
+            order_price = price
+            if order_price is None:
+                order_price = self.last_price
             # Place a market buy order using Binance API
             remote_order = self.client.new_order(symbol=self.trader_config.symbol,
                                                  side='buy',
                                                  type='LIMIT',
                                                  quantity=str(quantity),
                                                  timeInForce='GTC',
-                                                 price=str(self.last_price))
+                                                 price=str(order_price))
 
             # Extract order details
             order_id = remote_order['orderId']
@@ -128,30 +130,32 @@ class AbstractTrader(ABC):
             self.free_slots -= 1
             self.total_reserved_amount += order_reserved_amount
             self.current_trades.append(trade)
-            logging.info(f"open_position : A new order opened with id {order_id}")
+            logging.info(f"open_position : A new order opened with id {order_id} by trader {self.name}")
+            return trade
 
         except Exception as e:
-            logging.error(f"An Error occurred when opening buy position : {e}")
+            logging.error(f"An Error occurred when opening buy position by trader {self.name}: {e}")
 
-    def close_position(self):
+    def close_position(self, trade, price=None):
 
-        for trade in self.current_trades:
-            if trade.status == STATUS_FILLED:
-                try:
-                    remote_order = self.client.new_order(symbol=self.trader_config.symbol,
-                                                         side='buy',
-                                                         type='LIMIT',
-                                                         quantity=str(trade.quantity),
-                                                         timeInForce='GTC',
-                                                         price=str(self.last_price))
-                    order_id = remote_order['orderId']
-                    trade.sale_id = order_id
-                    trade.status = STATUS_SALE_OPEN
-                    logging.info(
-                        f"close_position : Sale order opened with buy-id {trade.buy_id} and sale_id {trade.sale_id}")
-                except Exception as e:
-                    logging.error(f"Erreur lors de la vente : {e}")
-                break
+        if trade.status == STATUS_FILLED:
+            order_price = price
+            if order_price is None:
+                order_price = self.last_price
+            try:
+                remote_order = self.client.new_order(symbol=self.trader_config.symbol,
+                                                     side='SELL',
+                                                     type='LIMIT',
+                                                     quantity=str(trade.quantity),
+                                                     timeInForce='GTC',
+                                                     price=str(order_price))
+                order_id = remote_order['orderId']
+                trade.sale_id = order_id
+                trade.status = STATUS_SALE_OPEN
+                logging.info(
+                    f"close_position : Sale order opened with buy-id {trade.buy_id} and sale_id {trade.sale_id} by trader {self.name}")
+            except Exception as e:
+                logging.error(f"Erreur lors de la vente by trader {self.name}: {e}")
 
     def init_order_update_handling(self):
         t = threading.Thread(
@@ -170,14 +174,21 @@ class AbstractTrader(ABC):
                 if message is None:
                     break
                 if message['e'] == 'executionReport':
+                    order_id = message['i']
+                    logging.info(f"process_order_update_message : order update received for id {order_id}")
                     for order in self.current_trades:
-                        if order.buy_id == message['i'] or order.sale_id == message['i']:
+                        if order.buy_id == order_id or order.sale_id == order_id:
                             status = message['X']
+                            logging.info(f"process_order_update_message : status {status} for id {order_id}")
+                            order_type = message['S']
+                            logging.info(f"process_order_update_message : order type {order_type} for id {order_id}")
                             if status == 'FILLED':
-                                if message['S'] == 'BUY':
+                                if order_type == 'BUY':
                                     self.update_buy_position(message, order)
-                                elif message['S'] == 'SELL':
+                                elif order_type == 'SELL':
                                     self.update_sell_position(message, order)
+                                else:
+                                    logging.warning(f"process_order_update_message : unknown order type {order_type} for id {order_id}")
                 self.order_queue.task_done()
             except queue.Empty:
                 continue
@@ -196,7 +207,7 @@ class AbstractTrader(ABC):
             trade.status = STATUS_FILLED
             self.total_reserved_amount -= trade.reserved_amount
             self.__update_capital('buy', trade.cost)
-            logging.info("update_buy_order : Trade updated. Buy order executed successfully")
+            logging.info(f"update_buy_order : Trade updated by trader {self.name}. Buy order executed successfully")
         except Exception as e:
             logging.error("update_buy_order")
 
@@ -219,12 +230,13 @@ class AbstractTrader(ABC):
             self.trade_history.append(trade)
             self.current_trades.remove(trade)
             if trade.profit > 0:
-                logging.info(f"update_sale_order : trade closed with profit {trade.profit}")
+                logging.info(f"update_sale_order : trade closed with profit {trade.profit} by trader {self.name}")
             if trade.profit < 0:
-                logging.info(f"update_sale_order : trade closed with loss {trade.profit}")
+                logging.info(f"update_sale_order : trade closed with loss {trade.profit} by trader {self.name}")
 
         except Exception as e:
-            logging.error(f'update_sale_order : An error occurred while updating order {trade.sale_id} with message {message}')
+            logging.error(
+                f'update_sale_order : An error occurred while updating order {trade.sale_id} with message {message}')
 
     def __update_capital(self, action, total):
 
@@ -242,28 +254,6 @@ class AbstractTrader(ABC):
         t.start()
         self.threads.append(t)
 
+    @abstractmethod
     def process_signal_message(self):
-
-        while not self.stop_event.is_set():
-            try:
-                signal = self.signal_queue.get(timeout=1)
-                if signal is None:
-                    break
-                if signal.type == SIGNAL_TYPE_BUY:
-                    self.handle_buy_signal_logic(signal)
-                elif signal.type == SIGNAL_TYPE_SELL:
-                    self.handle_sell_signal_logic(signal)
-                self.signal_queue.task_done()
-            except queue.Empty:
-                continue
-            except Exception as e:
-                logging.error(f"process_signal_message : Error processing signal message for symbol {self.trader_config.symbol}: {e}", exc_info=True)
-                self.signal_queue.task_done()
-
-    @abstractmethod
-    def handle_buy_signal_logic(self, signal):
-        pass
-
-    @abstractmethod
-    def handle_sell_signal_logic(self, signal):
         pass

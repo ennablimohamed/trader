@@ -1,9 +1,11 @@
 import logging
 
 from manager.abstract_manager import AbstractManager
+from trader.grid_trader import GridTrader
 from trader.reverse_mean_trader import ReverserMeanTrader
 
 REVERSE_MEAN_SIGNAL_DETECTOR = 'ReverseMeanSignalDetector'
+GRID_SIGNAL_DETECTOR = 'GridSignalDetector'
 
 
 class TraderManager(AbstractManager):
@@ -23,6 +25,9 @@ class TraderManager(AbstractManager):
         for config in traders_configs:
             if config.detector == REVERSE_MEAN_SIGNAL_DETECTOR:
                 trader = ReverserMeanTrader(api_config=self.app_config.api_config,trader_config=config)
+                traders.append(trader)
+            elif config.detector == GRID_SIGNAL_DETECTOR:
+                trader = GridTrader(api_config=self.app_config.api_config, trader_config=config)
                 traders.append(trader)
         return traders
 

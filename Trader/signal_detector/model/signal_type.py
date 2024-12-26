@@ -1,2 +1,3 @@
 SIGNAL_TYPE_BUY = 'buy'
 SIGNAL_TYPE_SELL = 'sell'
+SIGNAL_TYPE_GRID_CONFIG = 'grid-config'

@@ -55,7 +55,7 @@ def extract_api_config(file_config):
     return ApiConfig(credentials=credentials,
                      websocket_base_url=websocket_base_url,
                      base_url=base_url,
-                     trades_config= api_trades_config)
+                     trades_config=api_trades_config)
 
 
 def load_file(path):
@@ -96,10 +96,13 @@ def extract_traders_config(file_config):
             detector = value['detector']
             capital = value['capital']
             trade_quantity = value['trade-quantity']
+            grid_gap = value.get('grid-gap', None)
             trader_config = TraderConfig(
                 symbol=symbol,
                 detector=detector,
                 capital=capital,
-                trade_quantity=trade_quantity)
+                trade_quantity=trade_quantity,
+                grid_gap=grid_gap
+            )
             traders_configs.append(trader_config)
     return traders_configs

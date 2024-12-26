@@ -68,7 +68,7 @@ class ReverseMeanSignalDetector(AbstractSignalDetector):
                     signal_type=SIGNAL_TYPE_BUY,
                     price=self.last_price
                 )
-                self.__notify_consumers(message)
+                self.notify_consumers(message)
         except Exception as e:
             logging.error(f"An error occurred while detecting reverse mean signal for symbol {self.symbol}")
 
@@ -97,16 +97,3 @@ class ReverseMeanSignalDetector(AbstractSignalDetector):
         data.set_index('timestamp', inplace=True)
 
         return data[['open', 'high', 'low', 'close', 'volume']]
-
-    def add_signal_consumer(self, signal_queue):
-        self.signal_consumers.append(signal_queue)
-
-    def __notify_consumers(self, message):
-
-        logging.debug(f"__notify_consumers : Start notifying consumers about detected signal {message}")
-        for q in self.signal_consumers:
-            try:
-                q.put_nowait(message)
-            except queue.Full:
-                logging.warning(
-                    f"Signal queue is full for symbol {self.symbol} and detector {self.type}. Dropping message.")

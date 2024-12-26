@@ -11,11 +11,43 @@ api:
 klines:
   - BTCUSDT:
       period: 15m
+  - ETHUSDT:
+      period: 15m
+  - SOLUSDT:
+      period: 15m
+  - XRPUSDT:
+      period: 15m
+  - AVAXUSDT:
+      period: 15m
 
 signals:
   - ReverseMeanSignalBTC :
       symbol: BTCUSDT
       detector: ReverseMeanSignalDetector
+      need_klines: true
+  - ReverseMeanSignalETH:
+      symbol: ETHUSDT
+      detector: ReverseMeanSignalDetector
+      need_klines: true
+  - ReverseMeanSignalSOL:
+      symbol: SOLUSDT
+      detector: ReverseMeanSignalDetector
+      need_klines: true
+  - ReverseMeanSignalXRP:
+      symbol: XRPUSDT
+      detector: ReverseMeanSignalDetector
+      need_klines: true
+  - ReverseMeanSignalAVAX:
+      symbol: AVAXUSDT
+      detector: ReverseMeanSignalDetector
+      need_klines: true
+  - GridSignalBTC:
+      symbol: BTCUSDT
+      detector: GridSignalDetector
+      need_klines: true
+  - GridSignalETH:
+      symbol: ETHUSDT
+      detector: GridSignalDetector
       need_klines: true
 
 traders:
@@ -27,5 +59,54 @@ traders:
         quantity: 0.0001
         slots: 999
       trade-quantity: 0.001
-
+  - ReverseMeanTraderETH:
+      symbol: ETHUSDT
+      detector: ReverseMeanSignalDetector
+      capital: 1000
+      fees:
+        quantity: 0.0001
+        slots: 999
+      trade-quantity: 0.0028
+  - ReverseMeanTraderSOL:
+      symbol: SOLUSDT
+      detector: ReverseMeanSignalDetector
+      capital: 1000
+      fees:
+        quantity: 0.0001
+        slots: 999
+      trade-quantity: 0.052
+  - ReverseMeanTraderXRP:
+      symbol: XRPUSDT
+      detector: ReverseMeanSignalDetector
+      capital: 1000
+      fees:
+        quantity: 0.0001
+        slots: 999
+      trade-quantity: 5.0
+  - ReverseMeanTraderAVAX:
+      symbol: AVAXUSDT
+      detector: ReverseMeanSignalDetector
+      capital: 1000
+      fees:
+        quantity: 0.0001
+        slots: 999
+      trade-quantity: 0.26
+  - GridTraderBTC:
+      symbol: BTCUSDT
+      detector: GridSignalDetector
+      capital: 1000
+      fees:
+        quantity: 0.0001
+        slots: 999
+      trade-quantity: 0.001
+      grid-gap: 1000
+  - GridTraderETH:
+      symbol: ETHUSDT
+      detector: GridSignalDetector
+      capital: 1000
+      fees:
+        quantity: 0.0001
+        slots: 999
+      trade-quantity: 0.0028
+      grid-gap: 50
 

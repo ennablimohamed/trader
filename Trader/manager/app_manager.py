@@ -2,7 +2,7 @@ import logging
 
 from manager.abstract_manager import AbstractManager
 from manager.order_manager import OrderManager
-from manager.signal.signal_manager import SignalManager
+from manager.signal_manager import SignalManager
 from manager.symbol_data_manager import SymbolDataManager
 from manager.trader_manager import TraderManager
 from utils.dico_util import merge_dicts
