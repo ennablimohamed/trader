@@ -6,6 +6,7 @@ from config.api_config import ApiConfig
 from config.api_config_credentials import ApiConfigCredentials
 from config.api_trades_config import ApiTradesConfig
 from config.app_config import AppConfig
+from config.databse_config import DatabaseConfig
 from config.env_util import get_environment
 from config.api_price_config import ApiPriceConfig
 from config.klines_config import KlinesConfig
@@ -23,12 +24,14 @@ def load_current_config():
         signal_configs = extract_signal_config(file_config)
         klines_config = extract_klines_config(file_config)
         traders_config = extract_traders_config(file_config)
+        database_config = extract_database_config(file_config)
 
         app_config = AppConfig()
         app_config.api_config = api_config
         app_config.signal_configs = signal_configs
         app_config.klines_config = klines_config
         app_config.traders_config = traders_config
+        app_config.database_config = database_config
 
         return app_config
     except Exception as e:
@@ -106,3 +109,16 @@ def extract_traders_config(file_config):
             )
             traders_configs.append(trader_config)
     return traders_configs
+
+
+def extract_database_config(file_config):
+    file_database_config = file_config['database']
+
+    database_config = DatabaseConfig(
+        db_name=file_database_config['db-name'],
+        user=file_database_config['user'],
+        password=file_database_config['password'],
+        host=file_database_config['host'],
+        port=file_database_config['port']
+    )
+    return database_config

@@ -8,8 +8,8 @@ from trader.abstract_trader import AbstractTrader
 
 class AbstractBasicTrader(AbstractTrader):
 
-    def __init__(self, api_config, trader_config, name):
-        super().__init__(api_config, trader_config, name=name)
+    def __init__(self, api_config, name, database_manager, trader):
+        super().__init__(api_config, name=name, database_manager=database_manager, trader=trader)
 
     def process_signal_message(self):
 

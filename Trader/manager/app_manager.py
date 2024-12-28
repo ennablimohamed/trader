@@ -1,6 +1,7 @@
 import logging
 
 from manager.abstract_manager import AbstractManager
+from manager.database_manager import DatabaseManager
 from manager.order_manager import OrderManager
 from manager.signal_manager import SignalManager
 from manager.symbol_data_manager import SymbolDataManager
@@ -12,28 +13,29 @@ class AppManager(AbstractManager):
 
     def __init__(self, app_config):
         super().__init__(app_config)
-        self.trader_manager = TraderManager(self.app_config)
+        self.database_manager = DatabaseManager(app_config=app_config)
+        self.trader_manager = TraderManager(self.app_config, database_manager=self.database_manager)
         self.signal_manager = SignalManager(self.app_config)
-        self.fill_signal_consumers_queues()
-        price_queues = self.__extract_price_queues()
-        klines_queues = self.signal_manager.get_klines_queues()
         self.symbol_data_manager = SymbolDataManager(
-            app_config=self.app_config,
-            price_consumers_queues=price_queues,
-            klines_consumers_queues=klines_queues
+            app_config=self.app_config
         )
-        order_queues = self.trader_manager.get_order_queues()
-        self.order_manager = OrderManager(app_config=app_config, order_queues=order_queues)
+        self.order_manager = OrderManager(app_config=app_config)
 
     def start(self):
+        logging.info("start : Starting trader manager")
+        self.trader_manager.start()
+
+        self.fill_signal_consumers_queues()
+        self.fill_price_consumers_queues()
+        self.fill_signal_klines_queues()
+        self.fill_order_queues()
         logging.info("start : Starting symbol_data_manager")
         self.symbol_data_manager.start()
         logging.info("start : Starting signal manager")
         self.signal_manager.start()
-        logging.info("start : Starting trader manager")
-        self.trader_manager.start()
         logging.info("start : Starting order manager")
         self.order_manager.start()
+        logging.info("start : Starting database manager")
         threads = self.__get_threads()
         for t in threads:
             t.join()
@@ -53,7 +55,19 @@ class AppManager(AbstractManager):
 
     def fill_signal_consumers_queues(self):
         for trader in self.trader_manager.traders:
-            trader_config = trader.trader_config
-            self.signal_manager.add_signal_consumer(trader.signal_queue, trader_config.detector, trader_config.symbol)
+            self.signal_manager.add_signal_consumer(trader.signal_queue, trader.trader.signal_detector, trader.trader.symbol)
+
+    def fill_price_consumers_queues(self):
+        price_queues = self.__extract_price_queues()
+        self.symbol_data_manager.init_price_managers(price_queues)
+
+    def fill_signal_klines_queues(self):
+        klines_queues = self.signal_manager.get_klines_queues()
+        self.symbol_data_manager.init_klines_managers(klines_consumers_queues=klines_queues)
+
+    def fill_order_queues(self):
+        order_queues = self.trader_manager.get_order_queues()
+        self.order_manager.set_order_queues(order_queues=order_queues)
+
 
 

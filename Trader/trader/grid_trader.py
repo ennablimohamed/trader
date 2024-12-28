@@ -10,8 +10,12 @@ from trader.model.grid import Grid
 
 class GridTrader(AbstractTrader):
 
-    def __init__(self, api_config, trader_config):
-        super().__init__(api_config, trader_config, name='GridTrader-'+trader_config.symbol)
+    def __init__(self, api_config, database_manager, trader):
+        super().__init__(
+            api_config=api_config,
+            trader=trader,
+            name='GridTrader-' + trader.symbol,
+            database_manager=database_manager)
         self.grids = []
         self.min_price = None
         self.max_price = None

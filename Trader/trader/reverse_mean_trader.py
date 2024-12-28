@@ -1,14 +1,15 @@
 from trader.abstract_basic_trader import AbstractBasicTrader
-from trader.abstract_trader import AbstractTrader, STATUS_FILLED
+from trader.abstract_trader import STATUS_FILLED
 
 
 class ReverserMeanTrader(AbstractBasicTrader):
 
-    def __init__(self, api_config, trader_config):
+    def __init__(self, api_config, database_manager, trader):
         super().__init__(
             api_config=api_config,
-            trader_config=trader_config,
-            name='ReverserMeanTrader-'+trader_config.symbol
+            name='ReverserMeanTrader-'+trader.symbol,
+            database_manager=database_manager,
+            trader=trader
         )
 
     def handle_sell_signal_logic(self, signal):

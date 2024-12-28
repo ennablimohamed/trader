@@ -3,6 +3,8 @@
 class Trade:
 
     def __init__(self):
+        self.id = None
+        self.trader_id = None
         self.buy_id = None
         self.open_date = None
         self.status = None

@@ -8,7 +8,6 @@ from decimal import Decimal
 
 from binance.spot import Spot
 from date.date_util import get_current_date, compute_duration_until_now
-from signal_detector.model.signal_type import SIGNAL_TYPE_BUY, SIGNAL_TYPE_SELL, SIGNAL_TYPE_GRID_CONFIG
 from trader.model.trade import Trade
 
 STATUS_BUY_OPEN = 'buy-open'
@@ -19,15 +18,13 @@ STATUS_SALE_OPEN = 'sale-open'
 
 class AbstractTrader(ABC):
 
-    def __init__(self, api_config, trader_config, name):
+    def __init__(self, api_config, name, database_manager, trader):
         self.last_price = None
         self.price_queue = queue.Queue(maxsize=1000)
         self.stop_event = threading.Event()
         self.threads = []
         self.signal_queue = queue.Queue(maxsize=1000)
         self.api_config = api_config
-        self.trader_config = trader_config
-        self.capital = trader_config.capital
         self.free_slots = 0
         self.total_reserved_amount = Decimal('0')
         self.current_trades = []
@@ -36,11 +33,15 @@ class AbstractTrader(ABC):
         self.order_queue = queue.Queue(maxsize=1000)
         self.trading_fee_percentage = Decimal('0.001')
         self.name = name
+        self.database_manager = database_manager
+        self.trader = trader
 
     def start(self):
+        self.current_trades = self.database_manager.load_trades_by_trader(self.trader.id)
         self.__init_client()
         self.init_price_handling()
         self.init_signal_handling()
+        self.sync_orders()
         self.init_order_update_handling()
 
     def process_price_update_message(self):
@@ -56,7 +57,7 @@ class AbstractTrader(ABC):
                 continue
             except Exception as e:
                 logging.error(
-                    f"process_price_update_message : Error processing price message for symbol {self.trader_config.symbol}: {e}",
+                    f"process_price_update_message : Error processing price message for symbol {self.trader.symbol}: {e}",
                     exc_info=True)
                 self.price_queue.task_done()
 
@@ -73,7 +74,7 @@ class AbstractTrader(ABC):
         try:
             quantity = Decimal('0.0000001') * Decimal('1000')
             order = self.client.new_order(
-                symbol=self.trader_config.symbol,
+                symbol=self.trader.symbol,
                 side='BUY',
                 type='MARKET',
                 quantity=str(quantity)
@@ -88,7 +89,8 @@ class AbstractTrader(ABC):
             self.free_slots = 999
             self.fees_to_cover = total_cost / self.free_slots
             logging.info(f'fees to cover {self.fees_to_cover}')
-            self.trader_config.capital -= total_cost
+            self.trader.remaining_capital -= total_cost
+            self.database_manager.update_trader(trader=self.trader)
             logging.info('Fees bought')
         except Exception as e:
             logging.error(f"Error placing buy order: {e}")
@@ -103,12 +105,12 @@ class AbstractTrader(ABC):
 
     def open_position(self, price=None):
         try:
-            quantity = Decimal(str(self.trader_config.trade_quantity))
+            quantity = Decimal(str(self.trader.trade_quantity))
             order_price = price
             if order_price is None:
                 order_price = self.last_price
             # Place a market buy order using Binance API
-            remote_order = self.client.new_order(symbol=self.trader_config.symbol,
+            remote_order = self.client.new_order(symbol=self.trader.symbol,
                                                  side='buy',
                                                  type='LIMIT',
                                                  quantity=str(quantity),
@@ -126,11 +128,14 @@ class AbstractTrader(ABC):
             trade.detected_price = self.last_price
             trade.status = STATUS_BUY_OPEN
             trade.reserved_amount = order_reserved_amount
+            trade.trader_id = self.trader.id
 
             self.free_slots -= 1
-            self.total_reserved_amount += order_reserved_amount
+            self.trader.total_reserved_amount += order_reserved_amount
             self.current_trades.append(trade)
             logging.info(f"open_position : A new order opened with id {order_id} by trader {self.name}")
+            self.database_manager.save_trade(trade=trade)
+            self.database_manager.update_trader(trader=self.trader)
             return trade
 
         except Exception as e:
@@ -143,7 +148,7 @@ class AbstractTrader(ABC):
             if order_price is None:
                 order_price = self.last_price
             try:
-                remote_order = self.client.new_order(symbol=self.trader_config.symbol,
+                remote_order = self.client.new_order(symbol=self.trader.symbol,
                                                      side='SELL',
                                                      type='LIMIT',
                                                      quantity=str(trade.quantity),
@@ -154,6 +159,7 @@ class AbstractTrader(ABC):
                 trade.status = STATUS_SALE_OPEN
                 logging.info(
                     f"close_position : Sale order opened with buy-id {trade.buy_id} and sale_id {trade.sale_id} by trader {self.name}")
+                self.database_manager.update_trade(trade=trade)
             except Exception as e:
                 logging.error(f"Erreur lors de la vente by trader {self.name}: {e}")
 
@@ -176,19 +182,20 @@ class AbstractTrader(ABC):
                 if message['e'] == 'executionReport':
                     order_id = message['i']
                     logging.info(f"process_order_update_message : order update received for id {order_id}")
-                    for order in self.current_trades:
-                        if order.buy_id == order_id or order.sale_id == order_id:
+                    for trade in self.current_trades:
+                        if trade.status != STATUS_FILLED and (trade.buy_id == order_id or trade.sale_id == order_id):
                             status = message['X']
                             logging.info(f"process_order_update_message : status {status} for id {order_id}")
                             order_type = message['S']
                             logging.info(f"process_order_update_message : order type {order_type} for id {order_id}")
                             if status == 'FILLED':
                                 if order_type == 'BUY':
-                                    self.update_buy_position(message, order)
+                                    self.update_buy_position(message=message, trade=trade)
                                 elif order_type == 'SELL':
-                                    self.update_sell_position(message, order)
+                                    self.update_sell_position(message=message, trade=trade)
                                 else:
-                                    logging.warning(f"process_order_update_message : unknown order type {order_type} for id {order_id}")
+                                    logging.warning(
+                                        f"process_order_update_message : unknown order type {order_type} for id {order_id}")
                 self.order_queue.task_done()
             except queue.Empty:
                 continue
@@ -205,9 +212,11 @@ class AbstractTrader(ABC):
             trade.quantity_filled = quantity_filled
             trade.buy_price = trade.cost / quantity_filled
             trade.status = STATUS_FILLED
-            self.total_reserved_amount -= trade.reserved_amount
+            self.trader.total_reserved_amount -= trade.reserved_amount
             self.__update_capital('buy', trade.cost)
             logging.info(f"update_buy_order : Trade updated by trader {self.name}. Buy order executed successfully")
+            self.database_manager.update_trade(trade=trade)
+            self.database_manager.update_trader(trader=self.trader)
         except Exception as e:
             logging.error("update_buy_order")
 
@@ -233,6 +242,9 @@ class AbstractTrader(ABC):
                 logging.info(f"update_sale_order : trade closed with profit {trade.profit} by trader {self.name}")
             if trade.profit < 0:
                 logging.info(f"update_sale_order : trade closed with loss {trade.profit} by trader {self.name}")
+            self.database_manager.update_trade(trade=trade)
+            self.trader.profit += trade.profit
+            self.database_manager.update_trader(trader=self.trader)
 
         except Exception as e:
             logging.error(
@@ -241,9 +253,9 @@ class AbstractTrader(ABC):
     def __update_capital(self, action, total):
 
         if action == 'buy':
-            self.capital -= total
+            self.trader.remaining_capital -= total
         elif action == 'sell':
-            self.capital += total
+            self.trader.remaining_capital += total
 
     def init_signal_handling(self):
         t = threading.Thread(
@@ -257,3 +269,50 @@ class AbstractTrader(ABC):
     @abstractmethod
     def process_signal_message(self):
         pass
+
+    def sync_buy_order(self, trade, message):
+        trade.cost = Decimal(message['cummulativeQuoteQty'])
+        trade.quantity_filled = Decimal(message['executedQty'])
+        trade.buy_price = Decimal(message['price'])
+        trade.status = STATUS_FILLED
+        self.trader.total_reserved_amount -= trade.reserved_amount
+        self.__update_capital('buy', trade.cost)
+        logging.info(f"sync_buy_order : Trade updated by trader {self.name}. Buy order executed successfully")
+        self.database_manager.update_trade(trade=trade)
+        self.database_manager.update_trader(trader=self.trader)
+
+    def sync_sell_order(self, trade, message):
+        trade.sailed_quantity = Decimal(message['executedQty'])
+        trade.close_date = get_current_date()
+        trade.sale_price = Decimal(message['price'])
+        start_datetime = datetime.strptime(trade.open_date, "%d/%m/%YT%H:%M")
+        trade.duration = compute_duration_until_now(start_datetime)
+        trade.sale_timestamp = time.time()
+        total_sale_amount = Decimal(message['cummulativeQuoteQty'])
+        trade.sale_fees = total_sale_amount * self.trading_fee_percentage
+        trade.profit = total_sale_amount - trade.cost - trade.sale_fees - self.fees_to_cover
+        trade.status = STATUS_CLOSED
+
+        self.__update_capital(action='sell', total=total_sale_amount - trade.sale_fees)
+        self.trade_history.append(trade)
+        self.current_trades.remove(trade)
+        if trade.profit > 0:
+            logging.info(f"sync_sell_order : trade closed with profit {trade.profit} by trader {self.name}")
+        if trade.profit < 0:
+            logging.info(f"sync_sell_order : trade closed with loss {trade.profit} by trader {self.name}")
+        self.database_manager.update_trade(trade=trade)
+        self.trader.profit += trade.profit
+        self.database_manager.update_trader(trader=self.trader)
+
+    def sync_orders(self):
+        for trade in self.current_trades:
+            try:
+                if trade != STATUS_FILLED:
+                    if trade.status == STATUS_BUY_OPEN:
+                        order = self.client.get_order(symbol=self.trader.symbol, orderId=trade.buy_id)
+                        self.sync_buy_order(trade, order)
+                    elif trade.status == STATUS_SALE_OPEN:
+                        order = self.client.get_order(symbol=self.trader.symbol, orderId=trade.sale_id)
+                        self.sync_sell_order(trade, order)
+            except Exception as e:
+                logging.error(f"sync_orders : An error occurred while syncing trade {trade.id}")

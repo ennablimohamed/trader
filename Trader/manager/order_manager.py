@@ -13,11 +13,14 @@ import websockets
 
 class OrderManager(AbstractManager):
 
-    def __init__(self, app_config, order_queues):
+    def __init__(self, app_config):
         super().__init__(app_config)
         self.threads = []
-        self.order_queues = order_queues
+        self.order_queues = None
         self.listen_key = None
+
+    def set_order_queues(self, order_queues):
+        self.order_queues = order_queues
 
     def start(self):
         self.create_listen_key()
